@@ -1,0 +1,7 @@
+unstable_features = true
+
+# Additionally apply some formatting to comments to help make them more
+# readable inline
+wrap_comments = true
+comment_width = 80
+normalize_comments = true
