@@ -6,6 +6,8 @@ use glium::{glutin, Surface};
 use immediate_mode::color::{self, Color, Theme};
 use immediate_mode::math::Vec2;
 
+static mut INDICIES: u32 = 0;
+
 const VERT_SHADER_SRC: &str = r#"
 #version 140
 
@@ -53,7 +55,7 @@ impl From<Vec2> for Vert {
     }
 }
 
-fn rect(a: Vec2, b: Vec2, idx: u32, color: Color) -> ([Vert; 4], [u32; 6]) {
+fn rect(a: Vec2, b: Vec2, color: Color) -> ([Vert; 4], [u32; 6]) {
     let verts = [
         Vert {
             position: a.into(),
@@ -76,25 +78,26 @@ fn rect(a: Vec2, b: Vec2, idx: u32, color: Color) -> ([Vert; 4], [u32; 6]) {
             color: color.into(),
         },
     ];
-
-    let ind = [idx, idx + 1, idx + 2, idx + 1, idx + 2, idx + 3];
-
+    let ind = unsafe {
+        [
+            INDICIES,
+            INDICIES + 1,
+            INDICIES + 2,
+            INDICIES + 1,
+            INDICIES + 2,
+            INDICIES + 3,
+        ]
+    };
+    unsafe {
+        INDICIES += 4;
+    }
     (verts, ind)
 }
 
-fn colors(
-    bg: Color,
-    fg: &[Color],
-    x1: f32,
-    x2: f32,
-    y1: f32,
-    y2: f32,
-    mut ids: u32,
-) -> (Vec<Vert>, Vec<u32>) {
+fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> (Vec<Vert>, Vec<u32>) {
     let mut verts = Vec::with_capacity(fg.len() * 4 + 4);
     let mut idxs = Vec::with_capacity(fg.len() * 6 + 6);
-    let (vs, is) = rect(Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 }, ids, bg);
-    ids += vs.len() as u32;
+    let (vs, is) = rect(Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 }, bg);
     verts.extend(&vs);
     idxs.extend(&is);
 
@@ -117,7 +120,6 @@ fn colors(
                 x: x_max - 0.1,
                 y: (y_max - 2.0 * height) - y,
             },
-            ids + verts.len() as u32,
             *color,
         );
         verts.extend(&vs);
@@ -214,6 +216,9 @@ fn main() {
     ];
 
     event_loop.run(move |event, _, control_flow| {
+        unsafe {
+            INDICIES = 0;
+        }
         use glutin::event::{Event, StartCause, WindowEvent};
         use glutin::event_loop::ControlFlow;
 
@@ -253,7 +258,6 @@ fn main() {
             0.0,
             1.0,
             -1.0,
-            0u32,
         );
         verts.extend(&vs);
         ids.extend(&is);
@@ -265,7 +269,6 @@ fn main() {
             1.0,
             1.0,
             -1.0,
-            verts.len() as u32,
         );
         verts.extend(&vs);
         ids.extend(&is);
