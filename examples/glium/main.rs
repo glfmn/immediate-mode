@@ -44,7 +44,7 @@ implement_vertex!(Vert, position, uv, color);
 
 impl From<Vec2> for Vert {
     fn from(vec: Vec2) -> Self {
-        let color: [u8; 4] = LIGHT.bg.into();
+        let color: [u8; 4] = Theme::LIGHT.bg.into();
         Vert {
             position: vec.into(),
             uv: [0.0, 0.0],
@@ -53,8 +53,8 @@ impl From<Vec2> for Vert {
     }
 }
 
-fn rect(a: Vec2, b: Vec2, color: Color) -> [Vert; 6] {
-    [
+fn rect(a: Vec2, b: Vec2, idx: u32, color: Color) -> ([Vert; 4], [u32; 6]) {
+    let verts = [
         Vert {
             position: a.into(),
             uv: [0.0, 0.0],
@@ -75,22 +75,28 @@ fn rect(a: Vec2, b: Vec2, color: Color) -> [Vert; 6] {
             uv: [0.0, 0.0],
             color: color.into(),
         },
-        Vert {
-            position: [a.x, b.y],
-            uv: [0.0, 0.0],
-            color: color.into(),
-        },
-        Vert {
-            position: [b.x, a.y],
-            uv: [0.0, 0.0],
-            color: color.into(),
-        },
-    ]
+    ];
+
+    let ind = [idx, idx + 1, idx + 2, idx + 1, idx + 2, idx + 3];
+
+    (verts, ind)
 }
 
-fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> Vec<Vert> {
-    let mut verts = Vec::with_capacity(fg.len() * 6 + 6);
-    verts.extend(&rect(Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 }, bg));
+fn colors(
+    bg: Color,
+    fg: &[Color],
+    x1: f32,
+    x2: f32,
+    y1: f32,
+    y2: f32,
+    mut ids: u32,
+) -> (Vec<Vert>, Vec<u32>) {
+    let mut verts = Vec::with_capacity(fg.len() * 4 + 4);
+    let mut idxs = Vec::with_capacity(fg.len() * 6 + 6);
+    let (vs, is) = rect(Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 }, ids, bg);
+    ids += vs.len() as u32;
+    verts.extend(&vs);
+    idxs.extend(&is);
 
     let x_min = x1.min(x2);
     let x_max = x1.max(x2);
@@ -102,7 +108,7 @@ fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> Vec<Ve
 
     for (n, color) in fg.iter().enumerate() {
         let y = (n as f32) * height;
-        verts.extend(&rect(
+        let (vs, is) = rect(
             Vec2 {
                 x: x_min + 0.1,
                 y: y_max - height - y,
@@ -111,10 +117,13 @@ fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> Vec<Ve
                 x: x_max - 0.1,
                 y: (y_max - 2.0 * height) - y,
             },
+            ids + verts.len() as u32,
             *color,
-        ));
+        );
+        verts.extend(&vs);
+        idxs.extend(&is);
     }
-    verts
+    (verts, idxs)
 }
 
 fn main() {
@@ -233,27 +242,41 @@ fn main() {
         println!("frame: {}", frame);
 
         let mut verts: Vec<Vert> =
+            Vec::with_capacity((light_colors.len() + dark_colors.len()) * 4 + 8);
+        let mut ids: Vec<u32> =
             Vec::with_capacity((light_colors.len() + dark_colors.len()) * 6 + 12);
 
-        verts.extend(&colors(
+        let (vs, is) = colors(
             dark_bgs[(frame / 150) % dark_bgs.len()],
             &dark_colors,
             -1.0,
             0.0,
             1.0,
             -1.0,
-        ));
+            0u32,
+        );
+        verts.extend(&vs);
+        ids.extend(&is);
 
-        verts.extend(&colors(
+        let (vs, is) = colors(
             light_bgs[(frame / 150) % dark_bgs.len()],
             &light_colors,
             0.0,
             1.0,
             1.0,
             -1.0,
-        ));
+            verts.len() as u32,
+        );
+        verts.extend(&vs);
+        ids.extend(&is);
+
         let vbo = glium::VertexBuffer::new(&display, verts.as_slice()).unwrap();
-        let ibo = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+        let ibo = glium::IndexBuffer::new(
+            &display,
+            glium::index::PrimitiveType::TrianglesList,
+            ids.as_slice(),
+        )
+        .unwrap();
 
         let mut target = display.draw();
         let clear: [f32; 4] = Theme::LIGHT.bg.into();
