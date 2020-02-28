@@ -1,10 +1,22 @@
 //! Color type and default themes
 
-pub use theme::*;
-
 /// RGBA Color as hex
 #[derive(Copy, Clone, Debug)]
 pub struct Color(pub u32);
+
+impl Color {
+    /// Set the alpha of a color
+    ///
+    /// ```
+    /// # use immediate_mode::color::Color;
+    /// let color = Color(0xFF_FF_FF_FF);
+    /// let alpha: [u8; 4] = color.alpha(0x00).into();
+    /// assert_eq!(alpha, [255, 255, 255, 0]);
+    /// ```
+    pub fn alpha(self, alpha: u8) -> Color {
+        Color((self.0 & 0xFF_FF_FF_00) | alpha as u32)
+    }
+}
 
 impl Into<[u8; 4]> for Color {
     fn into(self) -> [u8; 4] {
@@ -48,18 +60,24 @@ fn test_color_f32_conversion() {
 
 /// Colors used in the UI
 pub struct Theme {
-    /// Text color and color of foreground elements like lines
+    /// Text color and default color of foreground elements like lines
     pub fg: Color,
-    /// Text color of disabled foreground elements
+    /// Disabled text and foreground elements like lines
     pub fg_disabled: Color,
+    /// Text and elements inside selected items like tabs
+    pub fg_selected: Color,
     /// Background color
     pub bg: Color,
+    /// Background for child regions
+    pub bg_child: Color,
+    /// Selected text background color
+    pub bg_highlight: Color,
     /// Color of borders
     pub border: Color,
     /// Color of an element like a button
     pub element: Color,
     /// Color of an item (like a button) currently being interacted with
-    pub hot: Color,
+    pub active: Color,
     /// Color of an item that has been selected
     pub selected: Color,
     /// Color of an item under the mouse or currently tabbed to
@@ -71,28 +89,39 @@ impl Theme {
     pub const DARK: Self = Theme {
         fg: theme::dark::FG,
         fg_disabled: theme::dark::FG2,
+        fg_selected: theme::dark::BG,
         bg: theme::dark::BG,
-        border: theme::dark::BG2,
+        bg_child: theme::dark::BG1,
+        bg_highlight: theme::dark::BG3,
+        border: theme::dark::BG4,
         element: theme::dark::BLUE,
-        selected: theme::dark::BRIGHT_BLUE,
+        selected: theme::dark::BLUE,
         hover: theme::dark::AQUA,
-        hot: theme::dark::BRIGHT_AQUA,
+        active: theme::dark::BRIGHT_AQUA,
     };
 
     /// Default light theme for UI
     pub const LIGHT: Self = Theme {
         fg: theme::light::FG,
         fg_disabled: theme::light::FG2,
+        fg_selected: theme::light::BG,
         bg: theme::light::BG,
-        border: theme::light::BG2,
+        bg_child: theme::light::BG1,
+        bg_highlight: theme::light::BG3,
+        border: theme::light::BG4,
         element: theme::light::BLUE,
-        selected: theme::light::BRIGHT_BLUE,
+        selected: theme::light::BLUE,
         hover: theme::light::AQUA,
-        hot: theme::light::BRIGHT_AQUA,
+        active: theme::light::BRIGHT_AQUA,
     };
 }
 
-/// The theme themes
+/// Colors for the default theme
+///
+/// Includes:
+/// - Base color pallete of white, black, primary and secondary colors
+/// - Light and dark theme specific range of foreground and background colors
+/// - Light and dark theme specific "Bright" colors
 pub mod theme {
     #![allow(clippy::unreadable_literal)]
     #![allow(missing_docs)]
@@ -100,25 +129,28 @@ pub mod theme {
     use super::Color;
 
     pub const BLACK: Color = Color(0x282828FF);
+    pub const GRAY: Color = Color(0x928374FF);
     pub const WHITE: Color = Color(0xFBF1C7FF);
     pub const RED: Color = Color(0xCC241DFF);
-    pub const GREEN: Color = Color(0x98971AFF);
+    pub const ORANGE: Color = Color(0xD65D0EFF);
     pub const YELLOW: Color = Color(0xD79921FF);
+    pub const GREEN: Color = Color(0x98971AFF);
+    pub const AQUA: Color = Color(0x689D6AFF);
     pub const BLUE: Color = Color(0x458588FF);
     pub const PURPLE: Color = Color(0xB16286FF);
-    pub const AQUA: Color = Color(0x689D6AFF);
-    pub const ORANGE: Color = Color(0xD65D0EFF);
-    pub const GRAY: Color = Color(0x928374FF);
 
-    /// The dark version of the theme theme
+    /// Dark theme colors for the default theme
     pub mod dark {
         use crate::color::theme as base;
         use crate::color::Color;
 
         // Background (dark grey and black) colors
 
+        /// Dark background color
         pub const BG: Color = base::BLACK;
+        /// High contrast background color
         pub const BGH: Color = Color(0x1D2021FF);
+        /// Soft contrast background color
         pub const BGS: Color = Color(0x32302FFF);
         pub const BG1: Color = Color(0x3C3836FF);
         pub const BG2: Color = Color(0x504945FF);
@@ -127,6 +159,7 @@ pub mod theme {
 
         // Foreground (white and light gray) colors
 
+        /// Light color for text and foreground elements
         pub const FG: Color = base::WHITE;
         pub const FG1: Color = Color(0xEBDBB2FF);
         pub const FG2: Color = Color(0xD5C4A1FF);
@@ -153,6 +186,7 @@ pub mod theme {
         pub const BRIGHT_GRAY: Color = Color(0x928374FF);
     }
 
+    /// Light theme colors for the default theme
     pub mod light {
         use crate::color::theme as base;
         use crate::color::theme::dark;
@@ -160,9 +194,12 @@ pub mod theme {
 
         // Background (white and light gray) colors
 
+        /// Light background color
         pub const BG: Color = base::WHITE;
-        pub const BGS: Color = Color(0xF2E5BCFF);
+        /// High contrast background color
         pub const BGH: Color = Color(0xF9F5D7FF);
+        /// Soft contrast background color
+        pub const BGS: Color = Color(0xF2E5BCFF);
         pub const BG1: Color = dark::FG1;
         pub const BG2: Color = dark::FG2;
         pub const BG3: Color = dark::FG3;
@@ -170,6 +207,7 @@ pub mod theme {
 
         // Foreground (black and gray) colors
 
+        /// Dark color for text and foreground elements
         pub const FG: Color = dark::BG;
         pub const FG1: Color = dark::BG1;
         pub const FG2: Color = dark::BG2;

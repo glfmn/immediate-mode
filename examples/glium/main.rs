@@ -3,7 +3,7 @@ extern crate glium;
 extern crate immediate_mode;
 
 use glium::{glutin, Surface};
-use immediate_mode::color::{self, Color, Theme};
+use immediate_mode::color::{Color, Theme};
 use immediate_mode::math::Vec2;
 
 static mut INDICIES: u32 = 0;
@@ -140,80 +140,34 @@ fn main() {
     let mut frame: usize = 0;
 
     let dark_colors = [
-        color::WHITE,
-        color::GRAY,
-        color::BLACK,
-        color::RED,
-        color::dark::BRIGHT_RED,
-        color::ORANGE,
-        color::dark::BRIGHT_ORANGE,
-        color::YELLOW,
-        color::dark::BRIGHT_YELLOW,
-        color::GREEN,
-        color::dark::BRIGHT_GREEN,
-        color::BLUE,
-        color::dark::BRIGHT_BLUE,
-        color::AQUA,
-        color::dark::BRIGHT_AQUA,
-        color::PURPLE,
-        color::dark::BRIGHT_PURPLE,
-        color::dark::FG1,
-        color::dark::FG2,
-        color::dark::FG3,
-        color::dark::FG4,
-        color::dark::BG1,
-        color::dark::BG2,
-        color::dark::BG3,
-        color::dark::BG4,
+        Theme::DARK.fg,
+        Theme::DARK.fg_disabled,
+        Theme::DARK.bg_highlight,
+        Theme::DARK.bg_child,
+        Theme::DARK.border,
+        Theme::DARK.element,
+        Theme::DARK.fg_selected,
+        Theme::DARK.selected,
+        Theme::DARK.hover,
+        Theme::DARK.active,
     ];
 
-    let dark_bgs = [
-        color::dark::BGS,
-        color::dark::BG,
-        color::dark::BGH,
-        color::dark::BG1,
-        color::dark::BG2,
-        color::dark::BG3,
-        color::dark::BG4,
-    ];
+    let dark_bgs = [Theme::DARK.bg, Theme::DARK.bg_child];
 
     let light_colors = [
-        color::BLACK,
-        color::GRAY,
-        color::WHITE,
-        color::RED,
-        color::light::BRIGHT_RED,
-        color::ORANGE,
-        color::light::BRIGHT_ORANGE,
-        color::YELLOW,
-        color::light::BRIGHT_YELLOW,
-        color::GREEN,
-        color::light::BRIGHT_GREEN,
-        color::BLUE,
-        color::light::BRIGHT_BLUE,
-        color::AQUA,
-        color::light::BRIGHT_AQUA,
-        color::PURPLE,
-        color::light::BRIGHT_PURPLE,
-        color::light::FG1,
-        color::light::FG2,
-        color::light::FG3,
-        color::light::FG4,
-        color::light::BG1,
-        color::light::BG2,
-        color::light::BG3,
-        color::light::BG4,
+        Theme::LIGHT.fg,
+        Theme::LIGHT.fg_disabled,
+        Theme::LIGHT.bg_highlight,
+        Theme::LIGHT.bg_child,
+        Theme::LIGHT.border,
+        Theme::LIGHT.element,
+        Theme::LIGHT.fg_selected,
+        Theme::LIGHT.selected,
+        Theme::LIGHT.hover,
+        Theme::LIGHT.active,
     ];
 
-    let light_bgs = [
-        color::light::BGH,
-        color::light::BG,
-        color::light::BGS,
-        color::light::BG1,
-        color::light::BG2,
-        color::light::BG3,
-        color::light::BG4,
-    ];
+    let light_bgs = [Theme::LIGHT.bg, Theme::LIGHT.bg_child];
 
     event_loop.run(move |event, _, control_flow| {
         unsafe {
