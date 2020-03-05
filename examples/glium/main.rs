@@ -5,20 +5,21 @@ extern crate immediate_mode;
 use glium::{glutin, Surface};
 use immediate_mode::color::{Color, Theme};
 use immediate_mode::math::Vec2;
+use immediate_mode::DrawData;
 
 static mut INDICIES: u32 = 0;
 
 const VERT_SHADER_SRC: &str = r#"
 #version 140
 
-in vec2 position;
+in vec2 pos;
 in vec2 uv;
 in vec4 color;
 out vec4 f_color;
 out vec2 tex;
 
 void main() {
-    gl_Position = vec4(position, 0.0, 1.0);
+    gl_Position = vec4(pos, 0.0, 1.0);
     tex = uv;
     f_color = color / 255.0;
 }
@@ -35,71 +36,23 @@ void main() {
 }
 "#;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct Vert {
-    position: [f32; 2],
+    pos: [f32; 2],
     uv: [f32; 2],
     color: [u8; 4],
 }
 
-implement_vertex!(Vert, position, uv, color);
-
-impl From<Vec2> for Vert {
-    fn from(vec: Vec2) -> Self {
-        let color: [u8; 4] = Theme::LIGHT.bg.into();
-        Vert {
-            position: vec.into(),
-            uv: [0.0, 0.0],
-            color,
-        }
+impl From<([f32; 2], [f32; 2], [u8; 4])> for Vert {
+    fn from((pos, uv, color): ([f32; 2], [f32; 2], [u8; 4])) -> Self {
+        Vert { pos, uv, color }
     }
 }
 
-fn rect(a: Vec2, b: Vec2, color: Color) -> ([Vert; 4], [u32; 6]) {
-    let verts = [
-        Vert {
-            position: a.into(),
-            uv: [0.0, 0.0],
-            color: color.into(),
-        },
-        Vert {
-            position: [a.x, b.y],
-            uv: [0.0, 0.0],
-            color: color.into(),
-        },
-        Vert {
-            position: [b.x, a.y],
-            uv: [0.0, 0.0],
-            color: color.into(),
-        },
-        Vert {
-            position: b.into(),
-            uv: [0.0, 0.0],
-            color: color.into(),
-        },
-    ];
-    let ind = unsafe {
-        [
-            INDICIES,
-            INDICIES + 1,
-            INDICIES + 2,
-            INDICIES + 1,
-            INDICIES + 2,
-            INDICIES + 3,
-        ]
-    };
-    unsafe {
-        INDICIES += 4;
-    }
-    (verts, ind)
-}
+implement_vertex!(Vert, pos, uv, color);
 
-fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> (Vec<Vert>, Vec<u32>) {
-    let mut verts = Vec::with_capacity(fg.len() * 4 + 4);
-    let mut idxs = Vec::with_capacity(fg.len() * 6 + 6);
-    let (vs, is) = rect(Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 }, bg);
-    verts.extend(&vs);
-    idxs.extend(&is);
+fn colors(draw: &mut DrawData<Vert>, bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) {
+    draw.rect(bg, Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 });
 
     let x_min = x1.min(x2);
     let x_max = x1.max(x2);
@@ -111,7 +64,8 @@ fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> (Vec<V
 
     for (n, color) in fg.iter().enumerate() {
         let y = (n as f32) * height;
-        let (vs, is) = rect(
+        draw.rect(
+            *color,
             Vec2 {
                 x: x_min + 0.1,
                 y: y_max - height - y,
@@ -120,12 +74,8 @@ fn colors(bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) -> (Vec<V
                 x: x_max - 0.1,
                 y: (y_max - 2.0 * height) - y,
             },
-            *color,
         );
-        verts.extend(&vs);
-        idxs.extend(&is);
     }
-    (verts, idxs)
 }
 
 fn main() {
@@ -200,12 +150,13 @@ fn main() {
         frame += 1;
         println!("frame: {}", frame);
 
-        let mut verts: Vec<Vert> =
-            Vec::with_capacity((light_colors.len() + dark_colors.len()) * 4 + 8);
-        let mut ids: Vec<u32> =
-            Vec::with_capacity((light_colors.len() + dark_colors.len()) * 6 + 12);
+        let mut draw = DrawData {
+            verts: Vec::with_capacity((light_colors.len() + 2) * 8),
+            indicies: Vec::with_capacity((light_colors.len() + 2) * 12),
+        };
 
-        let (vs, is) = colors(
+        colors(
+            &mut draw,
             dark_bgs[(frame / 150) % dark_bgs.len()],
             &dark_colors,
             -1.0,
@@ -213,10 +164,8 @@ fn main() {
             1.0,
             -1.0,
         );
-        verts.extend(&vs);
-        ids.extend(&is);
-
-        let (vs, is) = colors(
+        colors(
+            &mut draw,
             light_bgs[(frame / 150) % dark_bgs.len()],
             &light_colors,
             0.0,
@@ -224,19 +173,44 @@ fn main() {
             1.0,
             -1.0,
         );
-        verts.extend(&vs);
-        ids.extend(&is);
 
-        let vbo = glium::VertexBuffer::new(&display, verts.as_slice()).unwrap();
+        draw.rect(
+            Theme::LIGHT.bg_overlay,
+            Vec2 { x: 0.5, y: -1.0 },
+            Vec2 { x: 1.0, y: 1.0 },
+        );
+        draw.rect(
+            Theme::DARK.bg_overlay,
+            Vec2 { x: -0.5, y: -1.0 },
+            Vec2 { x: -1.0, y: 1.0 },
+        );
+
+        let mut xs = Vec::with_capacity(100);
+        for x in 0..100 {
+            let x = (x as f32) / 100.0;
+            let pos = Vec2 {
+                x: 2.0 * x - 1.0,
+                y: (10.0 * x + (frame as f32) / 10.0).sin(),
+            };
+            xs.push(pos);
+        }
+
+        draw.polyline(immediate_mode::color::theme::RED, 0.005, &xs);
+
+        let vbo = glium::VertexBuffer::new(&display, draw.verts.as_slice()).unwrap();
         let ibo = glium::IndexBuffer::new(
             &display,
             glium::index::PrimitiveType::TrianglesList,
-            ids.as_slice(),
+            draw.indicies.as_slice(),
         )
         .unwrap();
 
         let mut target = display.draw();
         let clear: [f32; 4] = Theme::LIGHT.bg.into();
+        let draw_params = glium::DrawParameters {
+            blend: glium::Blend::alpha_blending(),
+            ..Default::default()
+        };
         target.clear_color(clear[0], clear[1], clear[2], clear[3]);
         target
             .draw(
@@ -244,7 +218,7 @@ fn main() {
                 &ibo,
                 &program,
                 &glium::uniforms::EmptyUniforms,
-                &Default::default(),
+                &draw_params,
             )
             .unwrap();
         target.finish().unwrap();

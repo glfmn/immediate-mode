@@ -34,11 +34,13 @@ impl Vec2 {
     ///
     /// assert_eq!(Vec2::zero(), Vec2::default());
     /// ```
+    #[inline(always)]
     pub const fn zero() -> Self {
         Vec2 { x: 0f32, y: 0f32 }
     }
 
     /// Apply a function to the vector's x and y
+    #[inline(always)]
     pub(crate) fn map<F: Fn(f32) -> f32>(self, f: F) -> Self {
         Vec2 {
             x: f(self.x),
@@ -47,8 +49,36 @@ impl Vec2 {
     }
 
     /// Dot product between two vectors
+    #[inline(always)]
     pub(crate) fn dot(self, rhs: Self) -> f32 {
         self.x * rhs.x + self.y * rhs.y
+    }
+
+    /// Normal of a vector
+    #[inline(always)]
+    pub(crate) fn normal(self) -> Self {
+        Vec2 {
+            x: -self.y,
+            y: self.x,
+        }
+    }
+
+    /// Sqaured magnitude of a vector
+    #[inline(always)]
+    pub(crate) fn len2(self) -> f32 {
+        self.x * self.x + self.y * self.y
+    }
+
+    /// Magnitude of a vector
+    #[inline(always)]
+    pub(crate) fn len(self) -> f32 {
+        self.len2().sqrt()
+    }
+
+    /// Vector with a magnitude of 1
+    #[inline(always)]
+    pub(crate) fn unit(self) -> Self {
+        self * (1.0 / self.len().max(0.000_000_1))
     }
 }
 

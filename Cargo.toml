@@ -8,6 +8,11 @@ edition = "2018"
 
 [dev-dependencies]
 glium = "*" # example used to develop the library
+criterion = "0.3" # benchmarking
 
 [[example]]
 name = "glium"
+
+[[bench]]
+name = "primitives"
+harness = false
