@@ -13,7 +13,7 @@ impl Color {
     /// let alpha: [u8; 4] = color.alpha(0x00).into();
     /// assert_eq!(alpha, [255, 255, 255, 0]);
     /// ```
-    pub fn alpha(self, alpha: u8) -> Color {
+    pub const fn alpha(self, alpha: u8) -> Color {
         Color((self.0 & 0xFF_FF_FF_00) | alpha as u32)
     }
 }
