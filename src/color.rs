@@ -72,6 +72,8 @@ pub struct Theme {
     pub bg_child: Color,
     /// Selected text background color
     pub bg_highlight: Color,
+    /// More transparent background color for items which appear over other content
+    pub bg_overlay: Color,
     /// Color of borders
     pub border: Color,
     /// Color of an element like a button
@@ -93,6 +95,7 @@ impl Theme {
         bg: theme::dark::BG,
         bg_child: theme::dark::BG1,
         bg_highlight: theme::dark::BG3,
+        bg_overlay: theme::dark::BG2.alpha(100u8),
         border: theme::dark::BG4,
         element: theme::dark::BLUE,
         selected: theme::dark::BLUE,
@@ -108,6 +111,7 @@ impl Theme {
         bg: theme::light::BG,
         bg_child: theme::light::BG1,
         bg_highlight: theme::light::BG3,
+        bg_overlay: theme::light::BG2.alpha(100u8),
         border: theme::light::BG4,
         element: theme::light::BLUE,
         selected: theme::light::BLUE,
