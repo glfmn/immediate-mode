@@ -125,17 +125,19 @@ where
         }
 
         let color: [u8; 4] = color.into();
+        let thickness = thickness * 0.5;
 
-        // create two verts per point to achieve thickness
+        // Draw the line with two vertices per point.  The verts are placed
+        // on the miter line.  This line is essentially the intersection of
+        // the rectangles which form the segments on the line, forming a corner
+
         self.verts.reserve(2 * points.len());
-        // use two triangles per segment that connects two points
-        // n points, n-1 segments
-        self.indicies.reserve((points.len() - 1) * 6);
+        self.indicies.reserve((points.len() - 1) * 6); // 2 tris per segment
 
-        // Place the first points perpendicular to the line segment
+        // Place the first points perpendicular to the line segment from
+        // the first to second point
         let df = points[0] - points[1];
         let nf = df.normal().unit() * thickness;
-
         let index_count = self.verts.len() as u32;
         self.verts.extend(&[
             ((points[0] + nf).into(), [0.0, 0.0], color).into(),
@@ -151,8 +153,8 @@ where
             let p2 = points[i1 + 1];
 
             // calculate the direction of the line going into the point and its normal
-            let d_in = p0 - p1;
-            let n01 = d_in.unit().normal();
+            let d_in = p1 - p0;
+            let n01 = d_in.normal().unit();
 
             // calculate the tangent of join between lines and get its normal
             let miter = ((p2 - p1).unit() + (p1 - p0).unit()).unit().normal();
@@ -161,7 +163,8 @@ where
             // length of the miter line needed to join the line segments
             let length = thickness / miter.dot(n01);
 
-            // push verticies and indicies joining this point to the _next_ point
+            // push indicies joining this point to the _next_ point
+            // but only push the verticies for this point along the miter line
             let index_count = self.verts.len() as u32;
             self.verts.extend(&[
                 ((p1 - miter * length).into(), [0.0, 0.0], color).into(),
@@ -170,11 +173,11 @@ where
             self.indicies.extend(&quad_indicies![index_count]);
         }
 
-        // Place the last points perpendicular to the line segment
+        // Place the last points perpendicular to the line segment as with the
+        // first points, indicies have already been pushed on
         let last = points.len() - 1;
-        let dl = points[last - 1] - points[last];
+        let dl = points[last] - points[last - 1];
         let nl = dl.normal().unit() * thickness;
-
         self.verts.extend(&[
             ((points[last] - nl).into(), [0.0, 0.0], color).into(),
             ((points[last] + nl).into(), [0.0, 0.0], color).into(),
