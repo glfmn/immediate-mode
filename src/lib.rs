@@ -4,8 +4,11 @@
 //!
 //! 2D immediate mode user interface for Rust
 
-pub mod color;
-pub mod math;
+mod color;
+mod math;
+
+pub use crate::color::{theme, Color, Theme};
+pub use crate::math::Vec2;
 
 /// (position, uv, color)
 pub(crate) type Vert = ([f32; 2], [f32; 2], [u8; 4]);

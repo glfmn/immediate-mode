@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Bencher, BenchmarkId, Criterion};
-use immediate_mode::{color::theme, math::Vec2, DrawData};
+use immediate_mode::{theme, DrawData, Vec2};
 
 fn draw_data() -> DrawData<Vert> {
     DrawData::<Vert> {

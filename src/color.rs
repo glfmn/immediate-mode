@@ -8,7 +8,7 @@ impl Color {
     /// Set the alpha of a color
     ///
     /// ```
-    /// # use immediate_mode::color::Color;
+    /// # use immediate_mode::Color;
     /// let color = Color(0xFF_FF_FF_FF);
     /// let alpha: [u8; 4] = color.alpha(0x00).into();
     /// assert_eq!(alpha, [255, 255, 255, 0]);

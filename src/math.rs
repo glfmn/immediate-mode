@@ -9,11 +9,11 @@ use std::ops::{Add, Mul, Sub};
 /// input.
 ///
 /// ```
-/// use immediate_mode::math::Vec2 as GuiVec2;
+/// use immediate_mode as im;
 /// struct Vec2([f32; 2]);
 ///
-/// impl Into<GuiVec2> for Vec2 {
-///     fn into(self) -> GuiVec2 {
+/// impl Into<im::Vec2> for Vec2 {
+///     fn into(self) -> im::Vec2 {
 ///         self.0.into()
 ///     }
 /// }
@@ -30,7 +30,7 @@ impl Vec2 {
     /// A zero vector
     ///
     /// ```
-    /// use immediate_mode::math::Vec2;
+    /// use immediate_mode::Vec2;
     ///
     /// assert_eq!(Vec2::zero(), Vec2::default());
     /// ```

@@ -3,9 +3,7 @@ extern crate glium;
 extern crate immediate_mode;
 
 use glium::{glutin, Surface};
-use immediate_mode::color::{Color, Theme};
-use immediate_mode::math::Vec2;
-use immediate_mode::DrawData;
+use immediate_mode::{theme, Color, DrawData, Theme, Vec2};
 
 static mut INDICIES: u32 = 0;
 
@@ -195,7 +193,7 @@ fn main() {
             xs.push(pos);
         }
 
-        draw.polyline(immediate_mode::color::theme::RED, 0.005, &xs);
+        draw.polyline(theme::RED, 0.005, &xs);
 
         let vbo = glium::VertexBuffer::new(&display, draw.verts.as_slice()).unwrap();
         let ibo = glium::IndexBuffer::new(
