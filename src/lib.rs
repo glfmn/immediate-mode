@@ -138,8 +138,8 @@ where
 
         let index_count = self.verts.len() as u32;
         self.verts.extend(&[
-            ((points[0] - nf).into(), [0.0, 0.0], color).into(),
             ((points[0] + nf).into(), [0.0, 0.0], color).into(),
+            ((points[0] - nf).into(), [0.0, 0.0], color).into(),
         ]);
         // push indicies joining this point to the next point's verts
         self.indicies.extend(&quad_indicies![index_count]);
