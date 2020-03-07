@@ -1,0 +1,18 @@
+[package]
+name = "immediate-mode-dev"
+version = "0.0.1"
+description = "Tests, Benchmarks & Examples, prevents long compilation when not needed"
+edition = "2018"
+publish = false
+
+[dev-dependencies]
+immediate-mode = { path = "../" }
+glium = "*" # example used to develop the library
+criterion = "0.3" # benchmarking
+
+[[example]]
+name = "glium"
+
+[[bench]]
+name = "primitives"
+harness = false

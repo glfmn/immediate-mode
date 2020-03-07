@@ -7,12 +7,10 @@ edition = "2018"
 [dependencies]
 
 [dev-dependencies]
-glium = "*" # example used to develop the library
-criterion = "0.3" # benchmarking
+# Add dev dependencies to ./dev
+#
+# Adding them here will require compilation of heavy dependencies
+# just for running simple tests on the core library
 
-[[example]]
-name = "glium"
-
-[[bench]]
-name = "primitives"
-harness = false
+[workspace]
+members = ["dev"]
