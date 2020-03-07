@@ -183,4 +183,52 @@ where
             ((points[last] + nl).into(), [0.0, 0.0], color).into(),
         ]);
     }
+
+    /// fast polyline
+    pub fn rect_polyline(&mut self, color: color::Color, thickness: f32, points: &[math::Vec2]) {
+        // line must connect two points
+        if points.len() < 2 {
+            return;
+        }
+
+        let color: [u8; 4] = color.into();
+        let thickness = thickness * 0.5;
+
+        // Draw a rectangle for each segment which joins two points with no
+        // joining between the two segments
+        self.verts.reserve(4 * points.len());
+        self.indicies.reserve((points.len() - 1) * 6); // 2 tris per segment
+
+        // Place a rectangle along the first line segment
+        let df = points[0] - points[1];
+        let nf = df.normal().unit() * thickness;
+        let index_count = self.verts.len() as u32;
+        self.verts.extend(&[
+            ((points[0] - nf).into(), [0.0, 0.0], color).into(),
+            ((points[0] + nf).into(), [0.0, 0.0], color).into(),
+            ((points[1] - nf).into(), [0.0, 0.0], color).into(),
+            ((points[1] + nf).into(), [0.0, 0.0], color).into(),
+        ]);
+        self.indicies.extend(&quad_indicies![index_count]);
+
+        // iterate over pairs of indicies, or segments, and draw a rectangle
+        // for each
+        for i1 in 1..(points.len() - 1) {
+            let p1 = points[i1];
+            let p2 = points[i1 + 1];
+
+            // calculate the direction of the line going along this segment
+            // and draw the rectangle for the segment
+            let d_in = p2 - p1;
+            let n = d_in.normal().unit();
+            let index_count = self.verts.len() as u32;
+            self.verts.extend(&[
+                ((p1 - n * thickness).into(), [0.0, 0.0], color).into(),
+                ((p1 + n * thickness).into(), [0.0, 0.0], color).into(),
+                ((p2 - n * thickness).into(), [0.0, 0.0], color).into(),
+                ((p2 + n * thickness).into(), [0.0, 0.0], color).into(),
+            ]);
+            self.indicies.extend(&quad_indicies![index_count]);
+        }
+    }
 }
