@@ -28,6 +28,22 @@ where
     pub indicies: Vec<u32>,
 }
 
+/// Very common index pattern used when pushing indicies for a quad of verts
+macro_rules! quad_indicies {
+    ($index_count:expr) => {
+        [
+            // first triangle
+            $index_count,
+            $index_count + 1,
+            $index_count + 2,
+            // second triangle
+            $index_count + 1,
+            $index_count + 2,
+            $index_count + 3,
+        ]
+    };
+}
+
 impl<V> DrawData<V>
 where
     V: From<Vert> + Copy,
@@ -76,14 +92,7 @@ where
             ([b.x, a.y], [0.0, 0.0], color).into(),
             ([b.x, b.y], [0.0, 0.0], color).into(),
         ]);
-        self.indicies.extend(&[
-            base_index,
-            base_index + 1,
-            base_index + 2,
-            base_index + 1,
-            base_index + 2,
-            base_index + 3,
-        ]);
+        self.indicies.extend(&quad_indicies![base_index]);
     }
 
     /// Add vertex data for a rectangle with specified UV coords
@@ -105,14 +114,7 @@ where
             ([b.x, a.y], [uv_b.x, uv_a.y], color).into(),
             ([b.x, b.y], [uv_b.x, uv_b.y], color).into(),
         ]);
-        self.indicies.extend(&[
-            base_index,
-            base_index + 1,
-            base_index + 2,
-            base_index + 1,
-            base_index + 2,
-            base_index + 3,
-        ])
+        self.indicies.extend(&quad_indicies![base_index])
     }
 
     /// A line drawn with polygons through the provided points
@@ -139,15 +141,8 @@ where
             ((points[0] - nf).into(), [0.0, 0.0], color).into(),
             ((points[0] + nf).into(), [0.0, 0.0], color).into(),
         ]);
-        // push indicies joining this point to the next point's segment
-        self.indicies.extend(&[
-            index_count,
-            index_count + 1,
-            index_count + 2,
-            index_count + 1,
-            index_count + 2,
-            index_count + 3,
-        ]);
+        // push indicies joining this point to the next point's verts
+        self.indicies.extend(&quad_indicies![index_count]);
 
         // iterate over pairs of indicies
         for i1 in 1..(points.len() - 1) {
@@ -172,14 +167,7 @@ where
                 ((p1 - miter * length).into(), [0.0, 0.0], color).into(),
                 ((p1 + miter * length).into(), [0.0, 0.0], color).into(),
             ]);
-            self.indicies.extend(&[
-                index_count,
-                index_count + 1,
-                index_count + 2,
-                index_count + 1,
-                index_count + 2,
-                index_count + 3,
-            ]);
+            self.indicies.extend(&quad_indicies![index_count]);
         }
 
         // Place the last points perpendicular to the line segment
