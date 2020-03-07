@@ -78,7 +78,7 @@ impl Vec2 {
     /// Vector with a magnitude of 1
     #[inline(always)]
     pub(crate) fn unit(self) -> Self {
-        self * (1.0 / self.len().max(0.000_000_1))
+        self * (1.0 / self.len().max(0.000_000_01))
     }
 }
 
