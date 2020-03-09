@@ -5,8 +5,6 @@ extern crate immediate_mode;
 use glium::{glutin, Surface};
 use immediate_mode::{theme, Color, DrawData, Theme, Vec2};
 
-static mut INDICIES: u32 = 0;
-
 const VERT_SHADER_SRC: &str = r#"
 #version 140
 
@@ -118,9 +116,6 @@ fn main() {
     let light_bgs = [Theme::LIGHT.bg, Theme::LIGHT.bg_child];
 
     event_loop.run(move |event, _, control_flow| {
-        unsafe {
-            INDICIES = 0;
-        }
         use glutin::event::{Event, StartCause, WindowEvent};
         use glutin::event_loop::ControlFlow;
 
