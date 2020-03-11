@@ -13,9 +13,10 @@ in vec2 uv;
 in vec4 color;
 out vec4 f_color;
 out vec2 tex;
+uniform mat4 view;
 
 void main() {
-    gl_Position = vec4(pos, 0.0, 1.0);
+    gl_Position = view * vec4(pos, 0.0, 1.0);
     tex = uv;
     f_color = color / 255.0;
 }
@@ -57,17 +58,18 @@ fn colors(draw: &mut DrawData<Vert>, bg: Color, fg: &[Color], x1: f32, x2: f32, 
 
     let count = fg.len() + 4;
     let height = (y_max - y_min) / count as f32;
+    let width = (x_max - x_min) - (x_max - x_min) * 0.8;
 
     for (n, color) in fg.iter().enumerate() {
         let y = (n as f32) * height;
         draw.rect(
             *color,
             Vec2 {
-                x: x_min + 0.1,
+                x: x_min + width * 0.5,
                 y: y_max - height - y,
             },
             Vec2 {
-                x: x_max - 0.1,
+                x: x_max - width * 0.5,
                 y: (y_max - 2.0 * height) - y,
             },
         );
@@ -79,9 +81,6 @@ fn main() {
     let wb = glutin::window::WindowBuilder::new().with_title("immediate-mode");
     let cb = glutin::ContextBuilder::new();
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
-
-    let program =
-        glium::Program::from_source(&display, VERT_SHADER_SRC, FRAG_SHADER_SRC, None).unwrap();
 
     let mut frame: usize = 0;
 
@@ -115,6 +114,9 @@ fn main() {
 
     let light_bgs = [Theme::LIGHT.bg, Theme::LIGHT.bg_child];
 
+    let program =
+        glium::Program::from_source(&display, VERT_SHADER_SRC, FRAG_SHADER_SRC, None).unwrap();
+
     event_loop.run(move |event, _, control_flow| {
         use glutin::event::{Event, StartCause, WindowEvent};
         use glutin::event_loop::ControlFlow;
@@ -141,7 +143,9 @@ fn main() {
         }
 
         frame += 1;
-        println!("frame: {}", frame);
+
+        let (width, height) = display.get_framebuffer_dimensions();
+        let scale_factor = display.gl_window().window().scale_factor();
 
         let mut draw = DrawData {
             verts: Vec::with_capacity((light_colors.len() + 2) * 8),
@@ -152,19 +156,19 @@ fn main() {
             &mut draw,
             dark_bgs[(frame / 150) % dark_bgs.len()],
             &dark_colors,
-            -1.0,
             0.0,
-            1.0,
-            -1.0,
+            width as f32 / 2.0,
+            0.0,
+            300.0,
         );
         colors(
             &mut draw,
             light_bgs[(frame / 150) % dark_bgs.len()],
             &light_colors,
+            width as f32 / 2.0,
+            width as f32,
             0.0,
-            1.0,
-            1.0,
-            -1.0,
+            300.0,
         );
 
         draw.rect(
@@ -178,17 +182,17 @@ fn main() {
             Vec2 { x: -1.0, y: 1.0 },
         );
 
-        let mut xs = Vec::with_capacity(100);
-        for x in 0..100 {
-            let x = (x as f32) / 100.0;
+        let mut xs = Vec::with_capacity(400);
+        for x in 0..400 {
+            let x = (x as f32) / 400.0;
             let pos = Vec2 {
-                x: 2.0 * x - 1.0,
-                y: (10.0 * x + (frame as f32) / 10.0).sin(),
+                x: width as f32 * x,
+                y: (height / 4) as f32 * (20.0 * x).sin() + (height / 2) as f32,
             };
             xs.push(pos);
         }
 
-        draw.polyline(theme::RED, 0.005, &xs);
+        draw.polyline(theme::RED, 5.0, &xs);
 
         let vbo = glium::VertexBuffer::new(&display, draw.verts.as_slice()).unwrap();
         let ibo = glium::IndexBuffer::new(
@@ -199,20 +203,31 @@ fn main() {
         .unwrap();
 
         let mut target = display.draw();
+
         let clear: [f32; 4] = Theme::LIGHT.bg.into();
+        target.clear_color(clear[0], clear[1], clear[2], clear[3]);
+
         let draw_params = glium::DrawParameters {
             blend: glium::Blend::alpha_blending(),
             ..Default::default()
         };
-        target.clear_color(clear[0], clear[1], clear[2], clear[3]);
+
+        let view_matrix = uniform!(view: {
+            let origin = (0.0, 0.0);
+            let l = origin.0; // left
+            let r = origin.0 + width as f32 / scale_factor as f32;
+            let t = origin.1; // top
+            let b = origin.1 + height as f32 / scale_factor as f32;
+            [
+                [2.0 / (r - l), 0.0, 0.0, 0.0],
+                [0.0, 2.0 / (t - b), 0.0, 0.0],
+                [0.0, 0.0, -1.0, 0.0],
+                [(r + l) / (l - r), (t + b) / (b - t), 0.0, 1.0],
+            ]
+        });
+
         target
-            .draw(
-                &vbo,
-                &ibo,
-                &program,
-                &glium::uniforms::EmptyUniforms,
-                &draw_params,
-            )
+            .draw(&vbo, &ibo, &program, &view_matrix, &draw_params)
             .unwrap();
         target.finish().unwrap();
     });
