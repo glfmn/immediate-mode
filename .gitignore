@@ -2,3 +2,6 @@
 /dev/target
 **/*.rs.bk
 Cargo.lock
+
+# Text editor files
+.vscode/
