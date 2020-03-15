@@ -5,6 +5,7 @@ authors = ["Gwen Lofman <Gwen@Lofman.io>"]
 edition = "2018"
 
 [dependencies]
+rusttype = "0.8"
 
 [dev-dependencies]
 # Add dev dependencies to ./dev

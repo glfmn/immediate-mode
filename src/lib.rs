@@ -6,6 +6,7 @@
 
 mod color;
 mod math;
+mod text;
 
 pub use crate::color::{theme, Color, Theme};
 pub use crate::math::Vec2;
