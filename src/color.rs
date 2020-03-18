@@ -72,7 +72,8 @@ pub struct Theme {
     pub bg_child: Color,
     /// Selected text background color
     pub bg_highlight: Color,
-    /// More transparent background color for items which appear over other content
+    /// More transparent background color for items which appear over other
+    /// content
     pub bg_overlay: Color,
     /// Color of borders
     pub border: Color,
