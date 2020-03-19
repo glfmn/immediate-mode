@@ -32,6 +32,18 @@ where
     pub indicies: Vec<u32>,
 }
 
+impl<Vertex> Default for DrawData<Vertex>
+where
+    Vertex: From<Vert> + Copy,
+{
+    fn default() -> Self {
+        DrawData {
+            verts: Vec::with_capacity(32),
+            indicies: Vec::with_capacity(64),
+        }
+    }
+}
+
 /// Very common index pattern used when pushing indicies for a quad of verts
 macro_rules! quad_indicies {
     ($first_index:expr) => {
@@ -52,7 +64,42 @@ impl<V> DrawData<V>
 where
     V: From<Vert> + Copy,
 {
-    /// Triangle
+    /// Add verts directly to the buffer with relative indicies
+    ///
+    /// Indicies are relative to the verts passed in; for example:
+    /// ```
+    /// use immediate_mode::DrawData;
+    ///
+    /// type Vert = ([f32; 2], [f32; 2], [u8; 4]);
+    /// let mut draw_data = DrawData::<Vert>::default();
+    ///
+    /// // add a triangle:
+    /// let verts = &[
+    ///     ([0.0, 0.0], [0.0, 0.0], [1,0,0,1]),
+    ///     ([0.0, 0.5], [1.0, 0.0], [0,1,0,1]),
+    ///     ([0.5, 0.0], [0.0, 1.0], [0,0,1,1]),
+    /// ];
+    /// let indicies = &[0, 1, 2];
+    /// draw_data.extend(verts, indicies);
+    ///
+    /// // add a second triangle
+    /// let verts = &[
+    ///     ([1.0, 0.0], [0.0, 0.0], [1,0,1,1]),
+    ///     ([1.0, 0.5], [1.0, 0.0], [1,1,0,1]),
+    ///     ([0.5, 1.0], [0.0, 1.0], [0,1,1,1]),
+    /// ];
+    /// let indicies = &[0, 1, 2];
+    /// draw_data.extend(verts, indicies);
+    /// ```
+    #[inline]
+    pub fn extend(&mut self, verts: &[V], indicies: &[u32]) {
+        let base_index = self.verts.len() as u32;
+        self.verts.extend(verts);
+        self.indicies
+            .extend(indicies.iter().map(|i| base_index + i));
+    }
+
+    /// Triangle with uniform color
     pub fn tri(&mut self, color: color::Color, a: math::Vec2, b: math::Vec2, c: math::Vec2) {
         let base_index = self.verts.len() as u32;
 
@@ -86,6 +133,7 @@ where
     /// Add vertex data for a rectangle
     ///
     /// Rectangle is defined by the upper left and lower right coordinates
+    /// which means it is always axis aligned to the screen coordinates.
     pub fn rect(&mut self, color: color::Color, a: math::Vec2, b: math::Vec2) {
         let base_index = self.verts.len() as u32;
 
@@ -102,7 +150,8 @@ where
     /// Add vertex data for a rectangle with specified UV coords
     ///
     /// Rectangle and its UVs defined by the upper left and lower right
-    /// coordinates
+    /// coordinates which means they are always axis aligned to the
+    /// screen coordinates.
     pub fn rect_uv(
         &mut self,
         color: color::Color,
@@ -121,7 +170,31 @@ where
         self.indicies.extend(&quad_indicies![base_index])
     }
 
-    /// A line drawn with polygons through the provided points
+    /// Draw a line with polygons
+    ///
+    /// The line will have two verticies per point on the miter line, that is,
+    /// the verticies are aligned to the join between segments so it looks like
+    /// they cleanly join.
+    ///
+    /// This means that only 2 verts per point are generated, but the position
+    /// for each vert requires more math to compute compared to `rect_polyline`
+    /// ```
+    /// use immediate_mode::{ DrawData, Color, Vec2 };
+    ///
+    /// # type Vert = ([f32; 2], [f32; 2], [u8; 4]);
+    /// let mut draw_data = DrawData::<Vert>::default();
+    ///
+    /// // draw 3 points
+    /// let points = &[
+    ///     Vec2 { x: 0.0, y: 1.0 },
+    ///     Vec2 { x: 0.5, y: 0.5 },
+    ///     Vec2 { x: 1.0, y: 0.0 },
+    /// ];
+    /// draw_data.polyline(Color(0xFF_FF_FF_FF), 1.0, points);
+    ///
+    /// assert_eq!(points.len() * 2, draw_data.verts.len());
+    /// assert_eq!((points.len()-1) * 6, draw_data.indicies.len());
+    /// ```
     pub fn polyline(&mut self, color: color::Color, thickness: f32, points: &[math::Vec2]) {
         // line must connect two points
         if points.len() < 2 {
@@ -135,7 +208,7 @@ where
         // on the miter line.  This line is essentially the intersection of
         // the rectangles which form the segments on the line, forming a corner
 
-        self.verts.reserve(2 * points.len());
+        self.verts.reserve(2 * points.len()); // 2 verts per point
         self.indicies.reserve((points.len() - 1) * 6); // 2 tris per segment
 
         // Place the first points perpendicular to the line segment from
@@ -188,7 +261,31 @@ where
         ]);
     }
 
-    /// fast polyline
+    /// Generates a line from rectangles
+    ///
+    /// Sometimes faster alternative to `polyline`; rather than joining line
+    /// segments at the miter line, draw a rectangle aligned to the segment.
+    ///
+    /// This generates `(points.len()-1)*4` verticies but requires less math
+    /// than `polyline` and so can be faster.
+    ///
+    /// ```
+    /// use immediate_mode::{ DrawData, Color, Vec2 };
+    ///
+    /// # type Vert = ([f32; 2], [f32; 2], [u8; 4]);
+    /// let mut draw_data = DrawData::<Vert>::default();
+    ///
+    /// // draw 3 points
+    /// let points = &[
+    ///     Vec2 { x: 0.0, y: 1.0 },
+    ///     Vec2 { x: 0.5, y: 0.5 },
+    ///     Vec2 { x: 1.0, y: 0.0 },
+    /// ];
+    /// draw_data.rect_polyline(Color(0xFF_FF_FF_FF), 1.0, points);
+    ///
+    /// assert_eq!((points.len()-1) * 4, draw_data.verts.len());
+    /// assert_eq!((points.len()-1) * 6, draw_data.indicies.len());
+    /// ```
     pub fn rect_polyline(&mut self, color: color::Color, thickness: f32, points: &[math::Vec2]) {
         // line must connect two points
         if points.len() < 2 {
@@ -200,7 +297,7 @@ where
 
         // Draw a rectangle for each segment which joins two points with no
         // joining between the two segments
-        self.verts.reserve(4 * points.len());
+        self.verts.reserve(4 * (points.len() - 1)); // 4 verts per segment
         self.indicies.reserve((points.len() - 1) * 6); // 2 tris per segment
 
         // Place a rectangle along the first line segment
