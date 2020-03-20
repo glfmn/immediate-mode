@@ -1,11 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, Bencher, BenchmarkId, Criterion};
-use immediate_mode::{theme, DrawData, Vec2};
+use immediate_mode::{draw::DrawData, theme, Vec2};
 
 fn draw_data() -> DrawData<Vert> {
-    DrawData::<Vert> {
-        verts: vec![],
-        indicies: vec![],
-    }
+    DrawData::<Vert>::default()
 }
 
 #[derive(Copy, Clone, Debug)]

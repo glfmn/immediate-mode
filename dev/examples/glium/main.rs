@@ -3,7 +3,7 @@ extern crate glium;
 extern crate immediate_mode;
 
 use glium::{glutin, Surface};
-use immediate_mode::{theme, Color, DrawData, Theme, Vec2};
+use immediate_mode::{draw::DrawData, theme, Color, Theme, Vec2};
 
 const VERT_SHADER_SRC: &str = r#"
 #version 140
@@ -147,10 +147,7 @@ fn main() {
         let (width, height) = display.get_framebuffer_dimensions();
         let scale_factor = display.gl_window().window().scale_factor();
 
-        let mut draw = DrawData {
-            verts: Vec::with_capacity((light_colors.len() + 2) * 8),
-            indicies: Vec::with_capacity((light_colors.len() + 2) * 12),
-        };
+        let mut draw = DrawData::default();
 
         colors(
             &mut draw,
@@ -194,11 +191,11 @@ fn main() {
 
         draw.polyline(theme::RED, 5.0, &xs);
 
-        let vbo = glium::VertexBuffer::new(&display, draw.verts.as_slice()).unwrap();
+        let vbo = glium::VertexBuffer::new(&display, draw.verts()).unwrap();
         let ibo = glium::IndexBuffer::new(
             &display,
             glium::index::PrimitiveType::TrianglesList,
-            draw.indicies.as_slice(),
+            draw.indicies(),
         )
         .unwrap();
 
