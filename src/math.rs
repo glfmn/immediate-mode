@@ -39,6 +39,11 @@ impl Vec2 {
         Vec2 { x: 0f32, y: 0f32 }
     }
 
+    /// Create a 2D position
+    pub const fn new(x: f32, y: f32) -> Self {
+        Vec2 { x, y }
+    }
+
     /// Apply a function to the vector's x and y
     #[inline(always)]
     pub(crate) fn map<F: Fn(f32) -> f32>(self, f: F) -> Self {
@@ -63,7 +68,7 @@ impl Vec2 {
         }
     }
 
-    /// Sqaured magnitude of a vector
+    /// Squared magnitude of a vector
     #[inline(always)]
     pub(crate) fn len2(self) -> f32 {
         self.x * self.x + self.y * self.y
@@ -75,7 +80,7 @@ impl Vec2 {
         self.len2().sqrt()
     }
 
-    /// Vector with a magnitude of 1
+    /// Calculate unit vector (magnitude of 1)
     #[inline(always)]
     pub(crate) fn unit(self) -> Self {
         self * (1.0 / self.len().max(0.000_000_01))

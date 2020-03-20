@@ -49,7 +49,7 @@ impl From<([f32; 2], [f32; 2], [u8; 4])> for Vert {
 implement_vertex!(Vert, pos, uv, color);
 
 fn colors(draw: &mut DrawData<Vert>, bg: Color, fg: &[Color], x1: f32, x2: f32, y1: f32, y2: f32) {
-    draw.rect(bg, Vec2 { x: x1, y: y1 }, Vec2 { x: x2, y: y2 });
+    draw.rect(bg, Vec2::new(x1, y1), Vec2::new(x2, y2));
 
     let x_min = x1.min(x2);
     let x_max = x1.max(x2);
