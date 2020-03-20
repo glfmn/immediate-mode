@@ -3,7 +3,7 @@ extern crate glium;
 extern crate immediate_mode;
 
 use glium::{glutin, Surface};
-use immediate_mode::{draw::DrawData, theme, Color, Theme, Vec2};
+use immediate_mode::{draw::DrawData, text::Texture, theme, Color, Theme, Vec2};
 
 const VERT_SHADER_SRC: &str = r#"
 #version 140
@@ -28,8 +28,10 @@ const FRAG_SHADER_SRC: &str = r#"
 out vec4 color;
 in vec2 tex;
 in vec4 f_color;
+uniform sampler2D font;
 void main() {
     color = f_color;
+    color.a *= texture(font, tex).r*255;
 }
 "#;
 
@@ -76,6 +78,48 @@ fn colors(draw: &mut DrawData<Vert>, bg: Color, fg: &[Color], x1: f32, x2: f32, 
     }
 }
 
+fn load_font() -> immediate_mode::text::Texture {
+    use immediate_mode::text::{point, Font, Scale};
+
+    let font_data = include_bytes!("../../fonts/Source/SourceCodePro-Regular.ttf");
+    // This only succeeds if collection consists of one font
+    let font = Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
+    // The font size to use
+    let scale = Scale::uniform(100.0);
+
+    // The text to render
+    let text = "This is RustType rendered into a png!";
+
+    let v_metrics = font.v_metrics(scale);
+
+    // layout the glyphs in a line with 20 pixels padding
+    let glyphs: Vec<_> = font
+        .layout(text, scale, point(0.0, v_metrics.ascent))
+        .collect();
+
+    let mut texture = Texture::new(300, 150);
+
+    // Loop through the glyphs in the text, positing each one on a line
+    for glyph in glyphs {
+        if let Some(bounding_box) = glyph.pixel_bounding_box() {
+            // Draw the glyph into the image per-pixel by using the draw closure
+            glyph.draw(|x, y, v| {
+                let (width, height) = texture.dimensions();
+                let (x, y) = (x + bounding_box.min.x as u32, y + bounding_box.min.y as u32);
+                if x < width && y < height {
+                    texture[(x, y)] = (v * 255.0) as u8
+                }
+            });
+        }
+    }
+
+    texture[(0, 0)] = 255;
+    texture[(0, 1)] = 255;
+    texture[(1, 1)] = 255;
+    texture[(1, 0)] = 255;
+    texture
+}
+
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::new();
     let wb = glutin::window::WindowBuilder::new().with_title("immediate-mode");
@@ -83,6 +127,27 @@ fn main() {
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
     let mut frame: usize = 0;
+
+    struct Tex(Texture);
+
+    impl<'a> glium::texture::Texture2dDataSource<'a> for Tex {
+        type Data = u8;
+        fn into_raw(self) -> glium::texture::RawImage2d<'a, Self::Data> {
+            use std::borrow::Cow;
+            let (width, height) = self.0.dimensions();
+            glium::texture::RawImage2d {
+                data: Cow::Owned(self.0.pixels().to_owned()),
+                width,
+                height,
+                format: <Self::Data as glium::texture::PixelValue>::get_format(),
+            }
+        }
+    }
+
+    use glium::texture::{self, Texture2d};
+    let format = texture::UncompressedFloatFormat::U8;
+    let mipmaps = texture::MipmapsOption::NoMipmap;
+    let texture = Texture2d::with_format(&display, Tex(load_font()), format, mipmaps).unwrap();
 
     let dark_colors = [
         Theme::DARK.fg,
@@ -168,15 +233,11 @@ fn main() {
             300.0,
         );
 
-        draw.rect(
-            Theme::LIGHT.bg_overlay,
-            Vec2 { x: 0.5, y: -1.0 },
-            Vec2 { x: 1.0, y: 1.0 },
-        );
-        draw.rect(
-            Theme::DARK.bg_overlay,
-            Vec2 { x: -0.5, y: -1.0 },
-            Vec2 { x: -1.0, y: 1.0 },
+        // display font
+        draw.rect_uv(
+            theme::RED,
+            (Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0)),
+            (Vec2::new(300.0, 150.0), Vec2::new(1.0, 1.0)),
         );
 
         let mut xs = Vec::with_capacity(400);
@@ -209,22 +270,25 @@ fn main() {
             ..Default::default()
         };
 
-        let view_matrix = uniform!(view: {
-            let origin = (0.0, 0.0);
-            let l = origin.0; // left
-            let r = origin.0 + width as f32 / scale_factor as f32;
-            let t = origin.1; // top
-            let b = origin.1 + height as f32 / scale_factor as f32;
-            [
-                [2.0 / (r - l), 0.0, 0.0, 0.0],
-                [0.0, 2.0 / (t - b), 0.0, 0.0],
-                [0.0, 0.0, -1.0, 0.0],
-                [(r + l) / (l - r), (t + b) / (b - t), 0.0, 1.0],
-            ]
-        });
+        let uniforms = uniform!(
+            font: &texture,
+            view: {
+                let origin = (0.0, 0.0);
+                let l = origin.0; // left
+                let r = origin.0 + width as f32 / scale_factor as f32;
+                let t = origin.1; // top
+                let b = origin.1 + height as f32 / scale_factor as f32;
+                [
+                    [2.0 / (r - l), 0.0, 0.0, 0.0],
+                    [0.0, 2.0 / (t - b), 0.0, 0.0],
+                    [0.0, 0.0, -1.0, 0.0],
+                    [(r + l) / (l - r), (t + b) / (b - t), 0.0, 1.0],
+                ]
+            }
+        );
 
         target
-            .draw(&vbo, &ibo, &program, &view_matrix, &draw_params)
+            .draw(&vbo, &ibo, &program, &uniforms, &draw_params)
             .unwrap();
         target.finish().unwrap();
     });
