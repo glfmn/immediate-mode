@@ -9,6 +9,12 @@ use crate::Vec2;
 /// integrate smoothly with your renderer.
 pub type Vert = ([f32; 2], [f32; 2], [u8; 4]);
 
+/// Texture coordinate for drawing fully opaque primitives
+///
+/// For example, using this coordinate for every vertex in a triangle
+/// guarantees an opque triangle
+pub const OPAQUE_UV: [f32; 2] = [0.0, 0.0];
+
 /// Data needed to draw the UI
 #[derive(Debug, Clone)]
 pub struct DrawData<Vertex>
@@ -57,14 +63,14 @@ where
     ///
     /// Indicies are relative to the verts passed in; for example:
     /// ```
-    /// use immediate_mode::draw::DrawData;
+    /// use immediate_mode::draw::{DrawData, OPAQUE_UV};
     ///
     /// type Vert = ([f32; 2], [f32; 2], [u8; 4]);
     /// let mut draw_data = DrawData::<Vert>::default();
     ///
     /// // add a triangle:
     /// let verts = &[
-    ///     ([0.0, 0.0], [0.0, 0.0], [1,0,0,1]),
+    ///     (OPAQUE_UV, OPAQUE_UV, [1,0,0,1]),
     ///     ([0.0, 0.5], [1.0, 0.0], [0,1,0,1]),
     ///     ([0.5, 0.0], [0.0, 1.0], [0,0,1,1]),
     /// ];
@@ -73,7 +79,7 @@ where
     ///
     /// // add a second triangle
     /// let verts = &[
-    ///     ([1.0, 0.0], [0.0, 0.0], [1,0,1,1]),
+    ///     ([1.0, 0.0], OPAQUE_UV, [1,0,1,1]),
     ///     ([1.0, 0.5], [1.0, 0.0], [1,1,0,1]),
     ///     ([0.5, 1.0], [0.0, 1.0], [0,1,1,1]),
     /// ];
@@ -106,9 +112,9 @@ where
 
         let color: [u8; 4] = color.into();
         self.verts.extend(&[
-            (a.into(), [0.0, 0.0], color).into(),
-            (b.into(), [0.0, 0.0], color).into(),
-            (c.into(), [0.0, 0.0], color).into(),
+            (a.into(), OPAQUE_UV, color).into(),
+            (b.into(), OPAQUE_UV, color).into(),
+            (c.into(), OPAQUE_UV, color).into(),
         ]);
         self.indicies
             .extend(&[base_index, base_index + 1, base_index + 2]);
@@ -118,9 +124,9 @@ where
     pub fn tri_multicolor(&mut self, a: (Vec2, Color), b: (Vec2, Color), c: (Vec2, Color)) {
         let base_index = self.verts.len() as u32;
         self.verts.extend(&[
-            (a.0.into(), [0.0, 0.0], a.1.into()).into(),
-            (b.0.into(), [0.0, 0.0], b.1.into()).into(),
-            (c.0.into(), [0.0, 0.0], c.1.into()).into(),
+            (a.0.into(), OPAQUE_UV, a.1.into()).into(),
+            (b.0.into(), OPAQUE_UV, b.1.into()).into(),
+            (c.0.into(), OPAQUE_UV, c.1.into()).into(),
         ]);
         self.indicies
             .extend(&[base_index, base_index + 1, base_index + 2]);
@@ -135,10 +141,10 @@ where
 
         let color: [u8; 4] = color.into();
         self.verts.extend(&[
-            ([a.x, a.y], [0.0, 0.0], color).into(),
-            ([a.x, b.y], [0.0, 0.0], color).into(),
-            ([b.x, a.y], [0.0, 0.0], color).into(),
-            ([b.x, b.y], [0.0, 0.0], color).into(),
+            ([a.x, a.y], OPAQUE_UV, color).into(),
+            ([a.x, b.y], OPAQUE_UV, color).into(),
+            ([b.x, a.y], OPAQUE_UV, color).into(),
+            ([b.x, b.y], OPAQUE_UV, color).into(),
         ]);
         self.indicies.extend(&quad_indicies![base_index]);
     }
@@ -208,8 +214,8 @@ where
         let nf = df.normal().unit() * thickness;
         let first_index = self.verts.len() as u32;
         self.verts.extend(&[
-            ((points[0] + nf).into(), [0.0, 0.0], color).into(),
-            ((points[0] - nf).into(), [0.0, 0.0], color).into(),
+            ((points[0] + nf).into(), OPAQUE_UV, color).into(),
+            ((points[0] - nf).into(), OPAQUE_UV, color).into(),
         ]);
         // push indicies joining this point to the next point's verts
         self.indicies.extend(&quad_indicies![first_index]);
@@ -235,8 +241,8 @@ where
             // but only push the verticies for this point along the miter line
             let first_index = self.verts.len() as u32;
             self.verts.extend(&[
-                ((p1 - miter * length).into(), [0.0, 0.0], color).into(),
-                ((p1 + miter * length).into(), [0.0, 0.0], color).into(),
+                ((p1 - miter * length).into(), OPAQUE_UV, color).into(),
+                ((p1 + miter * length).into(), OPAQUE_UV, color).into(),
             ]);
             self.indicies.extend(&quad_indicies![first_index]);
         }
@@ -247,8 +253,8 @@ where
         let dl = points[last] - points[last - 1];
         let nl = dl.normal().unit() * thickness;
         self.verts.extend(&[
-            ((points[last] - nl).into(), [0.0, 0.0], color).into(),
-            ((points[last] + nl).into(), [0.0, 0.0], color).into(),
+            ((points[last] - nl).into(), OPAQUE_UV, color).into(),
+            ((points[last] + nl).into(), OPAQUE_UV, color).into(),
         ]);
     }
 
@@ -296,10 +302,10 @@ where
         let nf = df.normal().unit() * thickness;
         let first_index = self.verts.len() as u32;
         self.verts.extend(&[
-            ((points[0] - nf).into(), [0.0, 0.0], color).into(),
-            ((points[0] + nf).into(), [0.0, 0.0], color).into(),
-            ((points[1] - nf).into(), [0.0, 0.0], color).into(),
-            ((points[1] + nf).into(), [0.0, 0.0], color).into(),
+            ((points[0] - nf).into(), OPAQUE_UV, color).into(),
+            ((points[0] + nf).into(), OPAQUE_UV, color).into(),
+            ((points[1] - nf).into(), OPAQUE_UV, color).into(),
+            ((points[1] + nf).into(), OPAQUE_UV, color).into(),
         ]);
         self.indicies.extend(&quad_indicies![first_index]);
 
@@ -315,10 +321,10 @@ where
             let n = d_in.normal().unit();
             let first_index = self.verts.len() as u32;
             self.verts.extend(&[
-                ((p1 - n * thickness).into(), [0.0, 0.0], color).into(),
-                ((p1 + n * thickness).into(), [0.0, 0.0], color).into(),
-                ((p2 - n * thickness).into(), [0.0, 0.0], color).into(),
-                ((p2 + n * thickness).into(), [0.0, 0.0], color).into(),
+                ((p1 - n * thickness).into(), OPAQUE_UV, color).into(),
+                ((p1 + n * thickness).into(), OPAQUE_UV, color).into(),
+                ((p2 - n * thickness).into(), OPAQUE_UV, color).into(),
+                ((p2 + n * thickness).into(), OPAQUE_UV, color).into(),
             ]);
             self.indicies.extend(&quad_indicies![first_index]);
         }

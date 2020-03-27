@@ -31,10 +31,11 @@ impl IndexMut<(u32, u32)> for Texture {
 impl Texture {
     /// Create a texture of the desired width and height
     pub fn new(width: usize, height: usize) -> Self {
+        let pixels = vec![0u8; width * height];
         Texture {
-            width: width,
-            height: height,
-            pixels: vec![0u8; width * height],
+            width,
+            height,
+            pixels,
         }
     }
 
