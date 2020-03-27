@@ -58,6 +58,72 @@ impl From<([f32; 2], [f32; 2], [u8; 4])> for Vert {
 
 implement_vertex!(Vert, pos, uv, color);
 
+use std::collections::*;
+
+fn load_font(font_data: &[u8]) -> (immediate_mode::text::Texture, HashMap<char, (Vec2, Vec2)>) {
+    use immediate_mode::text::{point, Font, Scale};
+
+    // This only succeeds if collection consists of one font
+    let font = Font::from_bytes(font_data).expect("Error constructing Font");
+    // The font size to use
+    let scale = Scale::uniform(20.0 * 2.0);
+    let v_metrics = font.v_metrics(scale);
+    let ascent = v_metrics.ascent as u32;
+
+    let mut texture = Texture::new(1024, 1024);
+
+    for y in 0..(v_metrics.ascent - v_metrics.descent).ceil() as u32 {
+        texture[(0, y)] = 255;
+    }
+
+    let mut cursor: (i32, i32) = (4, ascent as i32);
+    let mut atlas = HashMap::with_capacity(128 - 32);
+
+    // Loop through the glyphs in the text, positing each one on a line
+    for c in (32u8..128)
+        .map(|c| c as char)
+        .chain("žБВГИІЇЙЈКЛЉМНЊОПРСТЋУЎ".chars())
+    {
+        let glyph = font.glyph(c).scaled(scale).positioned(point(0.0, 0.0));
+        if let Some(bb) = glyph.pixel_bounding_box() {
+            let y_min = bb.min.y;
+            let x_min = bb.min.x;
+            glyph.draw(|x, y, v| {
+                texture[(x + (cursor.0 + x_min) as u32, y + (cursor.1 + y_min) as u32)] =
+                    (v * 255.0) as u8;
+            });
+            atlas.insert(
+                c,
+                (
+                    Vec2::new(
+                        (cursor.0 + bb.min.x) as f32 / 1024.0,
+                        (cursor.1 + bb.min.y) as f32 / 1024.0,
+                    ),
+                    Vec2::new(
+                        (cursor.0 + bb.max.x) as f32 / 1024.0,
+                        (cursor.1 + bb.max.y) as f32 / 1024.0,
+                    ),
+                ),
+            );
+            cursor.0 += bb.max.x + 1;
+            if cursor.0 > 1024 - 16 {
+                cursor.0 = 0;
+                cursor.1 += (v_metrics.ascent - v_metrics.descent).ceil() as i32;
+            }
+        }
+    }
+
+    // display font
+    // for uvs in atlas.values() {
+    // draw.rect_uv(
+    // Theme::DARK.fg_disabled,
+    // (uvs.0 * 1024.0, uvs.0),
+    // (uvs.1 * 1024.0, uvs.1),
+    // );
+    // }
+    (texture, atlas)
+}
+
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::new();
     let wb = glutin::window::WindowBuilder::new().with_title("immediate-mode");
