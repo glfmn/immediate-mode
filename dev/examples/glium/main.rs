@@ -135,9 +135,9 @@ fn main() {
     let program =
         glium::Program::from_source(&display, VERT_SHADER_SRC, FRAG_SHADER_SRC, None).unwrap();
 
-    let mut ui: UI<Vert> = UI::new(Input::new((0, 0), false));
     let mut cursor_pos = glutin::dpi::PhysicalPosition::new(0.0, 0.0);
     let mut cursor_down = false;
+    let mut ui: UI<Vert> = UI::new(Input::new((0.0, 0.0), false));
     event_loop.run(move |event, _, control_flow| {
         use glutin::event::{Event, StartCause, WindowEvent};
         use glutin::event_loop::ControlFlow;
@@ -178,17 +178,53 @@ fn main() {
         let (width, height) = display.get_framebuffer_dimensions();
         let scale_factor = display.gl_window().window().scale_factor();
 
-        let id = ui.calculate_id(0);
-        ui.set_active(id);
         ui.draw(|data| {
-            data.tri_multicolor(
-                (Vec2::new(0.0, 0.0), Theme::LIGHT.element),
-                (Vec2::new(110.0, 0.0), Theme::LIGHT.fg),
-                (Vec2::new(0.0, 110.0), Theme::LIGHT.bg_overlay),
-            );
+            data.rect(
+                Theme::DARK.bg,
+                Vec2::new(0.0, 0.0),
+                Vec2::new(width as f32, height as f32),
+            )
         });
-        let e = ui.event(id, (Vec2::new(0.0, 0.0), Vec2::new(110.0, 110.0)));
-        eprintln!("{:?}", e);
+
+        use immediate_mode as im;
+
+        fn draw_button<V>(ui: &mut UI<V>, color: Color, pos: Vec2) -> (Vec2, Vec2)
+        where
+            V: From<im::draw::Vert> + Copy,
+        {
+            let size = Vec2 { x: 100.0, y: 20.0 };
+            ui.draw(|data| {
+                data.rect(color, pos, pos + size);
+            });
+
+            (pos, pos + size)
+        }
+
+        fn button<S: AsRef<str>, V>(ui: &mut UI<V>, label: &S, pos: Vec2) -> im::Event
+        where
+            V: From<im::draw::Vert> + Copy,
+        {
+            let id = ui.calculate_id(label.as_ref());
+
+            let color = if ui.is_held(id) {
+                Theme::DARK.active
+            } else {
+                if ui.is_hovered(id) {
+                    Theme::DARK.hover
+                } else {
+                    Theme::DARK.element
+                }
+            };
+
+            let region = draw_button(ui, color, pos);
+            ui.event(id, region)
+        }
+
+        ui.with_id(ui.calculate_id("SCOPE"), |ui| {
+            button(ui, &"Hello", Vec2::new(10.0, 10.0)).on_click(|_| println!("CLICKED 1"));
+        });
+
+        button(&mut ui, &"Hello", Vec2::new(10.0, 100.0)).on_click(|_| println!("CLICKED 2"));
 
         let renderer = ui.finish_frame();
 
@@ -230,7 +266,7 @@ fn main() {
         target.finish().unwrap();
 
         renderer.next_frame(Input::new(
-            (cursor_pos.x as u32, cursor_pos.y as u32),
+            (cursor_pos.x as f32, cursor_pos.y as f32),
             cursor_down,
         ));
     });

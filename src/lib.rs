@@ -21,13 +21,13 @@ use std::fmt::{self, Debug, Formatter};
 /// High level input consumed by the UI
 #[derive(Debug, Clone)]
 pub struct Input {
-    mouse_pos: (u32, u32),
+    mouse_pos: (f32, f32),
     mouse_down: bool,
 }
 
 impl Input {
     /// Create input necessary to process the UI
-    pub fn new((mouse_x, mouse_y): (u32, u32), mouse_down: bool) -> Self {
+    pub fn new((mouse_x, mouse_y): (f32, f32), mouse_down: bool) -> Self {
         Input {
             mouse_pos: (mouse_x, mouse_y),
             mouse_down,
@@ -94,36 +94,56 @@ where
 
     /// Complete this frame of the UI and render
     pub fn finish_frame<'a>(&'a mut self) -> Renderer<'a, V> {
+        self.context.finish_frame();
         Renderer { ui: self }
     }
 
     /// Was this ID previously declared active?
-    ///
-    /// By convention, activeness is always set after it is checked so this
-    /// means it must have been set active during a _previous_ frame.
-    pub fn is_active(&self, id: ID) -> bool {
-        id == self.context.active_id
+    pub fn is_held(&self, id: ID) -> bool {
+        id == self.context.held_id
+    }
+
+    /// Was this ID previously under the mouse?
+    pub fn is_hovered(&self, id: ID) -> bool {
+        id == self.context.prev_hover_id
+    }
+
+    fn hit_test((x, y): (f32, f32), region: (Vec2, Vec2)) -> bool {
+        region.0.x < x && x < region.1.x && region.0.y < y && y < region.1.y
     }
 
     /// Check a region associated with an ID for user interaction
-    pub fn event(&self, id: ID, region: (Vec2, Vec2)) -> Event {
+    pub fn event(&mut self, id: ID, region: (Vec2, Vec2)) -> Event {
         let (x, y) = self.input.mouse_pos;
-        let (x, y) = (x as f32, y as f32);
 
-        let hit = region.0.x < x && x < region.1.x && region.0.y < y && y < region.1.y;
-        let active = id == self.context.active_id;
-        let hot = active && hit;
+        // Click when button was held but is no longer held
+        let was_held = id == self.context.held_id;
+        let hit = Self::hit_test((x, y), region);
+
+        // update the active and hovered elements based on the hit results
+        if hit {
+            self.context.held_id = if self.input.mouse_down { id } else { 0 };
+            self.context.hover_id = id;
+        } else if was_held {
+            self.context.held_id = 0;
+        }
 
         Event {
-            is_clicked: self.input.mouse_down && hot,
-            is_hovered: !self.input.mouse_down && hot,
+            is_clicked: !self.input.mouse_down && was_held && hit,
+            is_hovered: self.context.prev_hover_id == id,
+            is_held: self.input.mouse_down && was_held,
             mouse_pos: Vec2 { x, y },
         }
     }
 
     /// This element ID is the active one for the current frame
     pub fn set_active(&mut self, id: ID) {
-        self.context.active_id = id;
+        self.context.held_id = id;
+    }
+
+    /// Set which item is hovering
+    pub fn set_hover(&mut self, id: ID) {
+        self.context.hover_id = id;
     }
 }
 
@@ -133,14 +153,18 @@ pub type ID = u64;
 /// User-Interface data which must persist between frames
 #[derive(Clone)]
 pub(crate) struct Context {
-    active_id: ID,
+    held_id: ID,
+    hover_id: ID,
+    prev_hover_id: ID,
     id_hasher: RandomState,
 }
 
 impl Default for Context {
     fn default() -> Self {
         Context {
-            active_id: 0,
+            held_id: 0,
+            hover_id: 0,
+            prev_hover_id: 0,
             id_hasher: RandomState::new(),
         }
     }
@@ -150,34 +174,52 @@ impl Debug for Context {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Context")
             // show hex for active_id since it is a hash
-            .field("active_id", &format!("{:#x}", self.active_id))
+            .field("active_id", &format!("{:#x}", self.held_id))
             .finish()
+    }
+}
+
+impl Context {
+    fn finish_frame(&mut self) {
+        self.prev_hover_id = self.hover_id;
+        self.hover_id = 0;
     }
 }
 
 /// Result of a user interaction with a specific region of the UI
 #[derive(Debug)]
 pub struct Event {
-    is_clicked: bool,
-    is_hovered: bool,
-    mouse_pos: Vec2,
+    /// The mouse went up over this region
+    pub is_clicked: bool,
+    /// The element is hovered
+    pub is_hovered: bool,
+    /// The element has the mouse button held down
+    pub is_held: bool,
+    /// The position of the mouse
+    pub mouse_pos: Vec2,
 }
 
 impl Event {
-    /// Perform an action when the UI detects a click
-    pub fn on_click<F: FnOnce()>(&self, action: F) -> &Self {
-        if self.is_clicked {
-            action();
+    fn when<F: FnOnce(Vec2)>(&self, pred: bool, action: F) -> &Self {
+        if pred {
+            action(self.mouse_pos)
         }
         self
     }
 
+    /// Perform an action when the UI detects a click
+    pub fn on_click<F: FnOnce(Vec2)>(&self, action: F) -> &Self {
+        self.when(self.is_clicked, action)
+    }
+
     /// Perform an action when hovering over the UI
     pub fn on_hover<F: FnOnce(Vec2)>(&self, action: F) -> &Self {
-        if self.is_hovered && !self.is_clicked {
-            action(self.mouse_pos);
-        }
-        self
+        self.when(self.is_hovered, action)
+    }
+
+    /// Perform an action while the mouse is down over this UI element
+    pub fn on_hold<F: FnOnce(Vec2)>(&self, action: F) -> &Self {
+        self.when(self.is_held, action)
     }
 }
 
@@ -199,6 +241,8 @@ where
     /// Process UI for the next frame
     pub fn next_frame(self, input: Input) -> &'a mut UI<V> {
         self.ui.input = input;
+        self.ui.draw_data.indicies.clear();
+        self.ui.draw_data.verts.clear();
         self.ui
     }
 
