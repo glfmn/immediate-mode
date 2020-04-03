@@ -21,15 +21,15 @@ use std::fmt::{self, Debug, Formatter};
 /// High level input consumed by the UI
 #[derive(Debug, Clone)]
 pub struct Input {
-    mouse_pos: (f32, f32),
+    mouse_pos: Option<Vec2>,
     mouse_down: bool,
 }
 
 impl Input {
     /// Create input necessary to process the UI
-    pub fn new((mouse_x, mouse_y): (f32, f32), mouse_down: bool) -> Self {
+    pub fn new(mouse_pos: Option<Vec2>, mouse_down: bool) -> Self {
         Input {
-            mouse_pos: (mouse_x, mouse_y),
+            mouse_pos,
             mouse_down,
         }
     }
@@ -63,6 +63,13 @@ where
             context: Context::default(),
             draw_data: DrawData::<V>::default(),
         }
+    }
+
+    /// Process UI for the next frame
+    pub fn next_frame(&mut self, input: Input) {
+        self.input = input;
+        self.draw_data.indicies.clear();
+        self.draw_data.verts.clear();
     }
 
     /// Draw primitives directly to the draw data
@@ -108,17 +115,19 @@ where
         id == self.context.prev_hover_id
     }
 
-    fn hit_test((x, y): (f32, f32), region: (Vec2, Vec2)) -> bool {
-        region.0.x < x && x < region.1.x && region.0.y < y && y < region.1.y
+    fn hit_test(pos: Vec2, region: (Vec2, Vec2)) -> bool {
+        region.0.x < pos.x && pos.x < region.1.x && region.0.y < pos.y && pos.y < region.1.y
     }
 
-    /// Check a region associated with an ID for user interaction
+    /// Check a region associated with an ID for mouse interaction
     pub fn event(&mut self, id: ID, region: (Vec2, Vec2)) -> Event {
-        let (x, y) = self.input.mouse_pos;
-
         // Click when button was held but is no longer held
         let was_held = id == self.context.held_id;
-        let hit = Self::hit_test((x, y), region);
+        let hit = if let Some(p) = self.input.mouse_pos {
+            Self::hit_test(p, region)
+        } else {
+            false
+        };
 
         // update the active and hovered elements based on the hit results
         if hit {
@@ -132,7 +141,7 @@ where
             is_clicked: !self.input.mouse_down && was_held && hit,
             is_hovered: self.context.prev_hover_id == id,
             is_held: self.input.mouse_down && was_held,
-            mouse_pos: Vec2 { x, y },
+            mouse_pos: self.input.mouse_pos.filter(|_| hit),
         }
     }
 
@@ -196,30 +205,55 @@ pub struct Event {
     /// The element has the mouse button held down
     pub is_held: bool,
     /// The position of the mouse
-    pub mouse_pos: Vec2,
+    pub mouse_pos: Option<Vec2>,
 }
 
 impl Event {
+    #[inline]
     fn when<F: FnOnce(Vec2)>(&self, pred: bool, action: F) -> &Self {
         if pred {
-            action(self.mouse_pos)
+            if let Some(pos) = self.mouse_pos {
+                action(pos);
+            }
         }
         self
     }
 
     /// Perform an action when the UI detects a click
+    #[inline]
     pub fn on_click<F: FnOnce(Vec2)>(&self, action: F) -> &Self {
         self.when(self.is_clicked, action)
     }
 
     /// Perform an action when hovering over the UI
+    #[inline]
     pub fn on_hover<F: FnOnce(Vec2)>(&self, action: F) -> &Self {
         self.when(self.is_hovered, action)
     }
 
     /// Perform an action while the mouse is down over this UI element
+    #[inline]
     pub fn on_hold<F: FnOnce(Vec2)>(&self, action: F) -> &Self {
         self.when(self.is_held, action)
+    }
+
+    /// Pop up some text on hover
+    #[inline]
+    pub fn tooltip<V, S: AsRef<str>>(&self, ui: &mut UI<V>, text: S) -> &Self
+    where
+        V: From<draw::Vert> + Copy,
+    {
+        if let Some(pos) = self.mouse_pos.filter(|_| self.is_hovered && !self.is_held) {
+            let len = text.as_ref().len() as f32;
+            ui.draw(|d| {
+                d.rect(
+                    Theme::DARK.bg_child,
+                    pos,
+                    pos + Vec2::new(len * 20.0, -15.0),
+                )
+            });
+        }
+        self
     }
 }
 
@@ -238,14 +272,6 @@ impl<'a, V> Renderer<'a, V>
 where
     V: From<draw::Vert> + Copy,
 {
-    /// Process UI for the next frame
-    pub fn next_frame(self, input: Input) -> &'a mut UI<V> {
-        self.ui.input = input;
-        self.ui.draw_data.indicies.clear();
-        self.ui.draw_data.verts.clear();
-        self.ui
-    }
-
     /// Access the verticies produced by the renderer
     pub fn verts(&self) -> &[V] {
         self.ui.draw_data.verts()

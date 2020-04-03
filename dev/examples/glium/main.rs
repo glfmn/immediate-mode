@@ -137,7 +137,7 @@ fn main() {
 
     let mut cursor_pos = glutin::dpi::PhysicalPosition::new(0.0, 0.0);
     let mut cursor_down = false;
-    let mut ui: UI<Vert> = UI::new(Input::new((0.0, 0.0), false));
+    let mut ui: UI<Vert> = UI::new(Input::new(None, false));
     event_loop.run(move |event, _, control_flow| {
         use glutin::event::{Event, StartCause, WindowEvent};
         use glutin::event_loop::ControlFlow;
@@ -172,6 +172,11 @@ fn main() {
             },
             _ => return,
         }
+
+        ui.next_frame(Input::new(
+            Some(Vec2::new(cursor_pos.x as f32, cursor_pos.y as f32)),
+            cursor_down,
+        ));
 
         frame += 1;
 
@@ -221,10 +226,17 @@ fn main() {
         }
 
         ui.with_id(ui.calculate_id("SCOPE"), |ui| {
-            button(ui, &"Hello", Vec2::new(10.0, 10.0)).on_click(|_| println!("CLICKED 1"));
+            button(ui, &"Hello", Vec2::new(10.0, 10.0))
+                .on_hover(|_| println!("{:#x} HOVERED 1", frame))
+                .on_hold(|_| println!("{:#x} HELD    1", frame))
+                .on_click(|_| println!("{:#x} CLICKED 1", frame))
+                .tooltip(ui, &"Hello");
         });
 
-        button(&mut ui, &"Hello", Vec2::new(10.0, 100.0)).on_click(|_| println!("CLICKED 2"));
+        button(&mut ui, &"Hello", Vec2::new(10.0, 100.0))
+            .on_hover(|_| println!("{:#x} HOVERED 2", frame))
+            .on_hold(|_| println!("{:#x} HELD    2", frame))
+            .on_click(|_| println!("{:#x} CLICKED 2", frame));
 
         let renderer = ui.finish_frame();
 
@@ -264,10 +276,5 @@ fn main() {
             .unwrap();
 
         target.finish().unwrap();
-
-        renderer.next_frame(Input::new(
-            (cursor_pos.x as f32, cursor_pos.y as f32),
-            cursor_down,
-        ));
     });
 }
